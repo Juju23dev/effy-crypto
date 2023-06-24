@@ -5,8 +5,8 @@ import {
   refreshingToken,
   createAuthAndRefreshToken,
   createTokenTool,
-} from "../utils/jwt";
-import { tokenToolsShema } from "../utils/zod.validators";
+} from "../src/utils/jwt";
+import { tokenToolsShema } from "../src/utils/zod.validators";
 import { badStringParams, fakeObject } from "./utils.spec";
 
 /**

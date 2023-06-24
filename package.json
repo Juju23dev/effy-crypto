@@ -1,23 +1,23 @@
 {
   "name": "@e2fy/effy-crypto",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "The Effy Crypto lib for hash password, encrypt data or generate jwt.",
-  "homepage": "https://github.com/Juju23dev/effy-crypto",
+  "homepage": "https://github.com/djudj-dev/effy-crypto",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Juju23dev/effy-crypto"
+    "url": "https://github.com/djudj-dev/effy-crypto"
   },
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
-  "type": "commonjs",
   "scripts": {
     "start": "ts-node src/index.ts",
     "start:watch": "ts-node-dev src/index.ts",
     "start:build": "node dist/index.js",
     "test": "vitest --coverage",
-    "build": "tsc"
+    "build": "tsc",
+    "publish:npm": "vitest --run && pnpm build && npm publish --access public"
   },
-  "keywords": [],
+  "keywords": ["argon2", "AES", "JWT"],
   "author": "@Djudj_dev",
   "license": "MIT",
   "dependencies": {

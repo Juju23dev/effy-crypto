@@ -4,7 +4,7 @@ import {
   encryptData,
   getSecretKey,
   changeSecretKey,
-} from "../utils/encrypt";
+} from "../src/utils/encrypt";
 import { ZodError } from "zod";
 import { SHA512 } from "crypto-js";
 import {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { hashPassword, verifyPassword } from "../utils/password";
+import { hashPassword, verifyPassword } from "../src/utils/password";
 import { ZodError } from "zod";
 import { badStringParams, passwords } from "./utils.spec";
 /**
