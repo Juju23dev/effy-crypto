@@ -1,4 +1,4 @@
-# ioredis-zod-om
+# Effy-crypto
 
 The Effy Crypto lib for hash password, encrypt data or generate jwt\
 You can use it if you want 😉
