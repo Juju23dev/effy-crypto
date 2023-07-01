@@ -1,15 +1,6 @@
-import {
-  encryptData,
-  decryptData,
-  getSecretKey,
-  changeSecretKey,
-} from "./utils/encrypt";
-import { hashPassword, verifyPassword } from "./utils/password";
-import {
-  createTokenTool,
-  createAuthAndRefreshToken,
-  refreshingToken,
-} from "./utils/jwt";
+import { encryptData, decryptData, getSecretKey, changeSecretKey } from './utils/encrypt';
+import { hashPassword, verifyPassword } from './utils/password';
+import { createTokenTool, createAuthAndRefreshToken, refreshingToken } from './utils/jwt';
 
 export default {
   hashPassword,

@@ -1,37 +1,55 @@
-import { AES, SHA512, enc } from "crypto-js";
+import { AES, SHA512, enc } from 'crypto-js';
+import { syncFnErrorCatcher, syncFnSafeErrorCatcher } from '../errors/wrap-fn-error';
 import {
   changeSecretKeyValidator,
   decryptDataValidator,
   encryptDataValidator,
   getSecretKeyValidator,
-} from "./zod.validators";
+} from './zod.validators';
 
-const encryptData = (data: object, secretKey: string) => {
-  encryptDataValidator([data, secretKey]);
+const encryptDataFn = (params: { data: any; secretKey: string }) => {
+  const { data, secretKey } = encryptDataValidator(params);
 
   return AES.encrypt(JSON.stringify(data), secretKey).toString();
 };
 
-const decryptData = (encryptedData: string, secretKey: string) => {
-  decryptDataValidator([encryptedData, secretKey]);
+const decryptDataFn = (params: { encryptedData: string; secretKey: string }) => {
+  const { encryptedData, secretKey } = decryptDataValidator(params);
 
   return JSON.parse(AES.decrypt(encryptedData, secretKey).toString(enc.Utf8));
 };
 
-const changeSecretKey = (
-  oldKey: string,
-  newKey: string,
-  encryptedData: string
-) => {
-  changeSecretKeyValidator([oldKey, newKey, encryptedData]);
+const changeSecretKeyFn = (params: { oldKey: string; newKey: string; encryptedData: string }) => {
+  const { oldKey, newKey, encryptedData } = changeSecretKeyValidator(params);
 
-  return encryptData(decryptData(encryptedData, oldKey), newKey);
+  return encryptDataFn({
+    data: decryptDataFn({ encryptedData, secretKey: oldKey }),
+    secretKey: newKey,
+  });
 };
 
-const getSecretKey = (keyString: string) => {
+const getSecretKeyFn = (keyString: string) => {
   getSecretKeyValidator(keyString);
 
   return SHA512(keyString).toString();
 };
 
-export { encryptData, decryptData, changeSecretKey, getSecretKey };
+export const {
+  encryptData,
+  safeEncryptData,
+  decryptData,
+  safeDecryptData,
+  changeSecretKey,
+  safeChangeSecretKey,
+  getSecretKey,
+  safeGetSecretKey,
+} = {
+  encryptData: syncFnErrorCatcher(encryptDataFn),
+  safeEncryptData: syncFnSafeErrorCatcher(encryptDataFn),
+  decryptData: syncFnErrorCatcher(decryptDataFn),
+  safeDecryptData: syncFnSafeErrorCatcher(decryptDataFn),
+  changeSecretKey: syncFnErrorCatcher(changeSecretKeyFn),
+  safeChangeSecretKey: syncFnSafeErrorCatcher(changeSecretKeyFn),
+  getSecretKey: syncFnErrorCatcher(getSecretKeyFn),
+  safeGetSecretKey: syncFnSafeErrorCatcher(getSecretKeyFn),
+};

@@ -1,11 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   decryptData,
   encryptData,
   getSecretKey,
   changeSecretKey,
 } from "../src/utils/encrypt";
-import { ZodError } from "zod";
 import { SHA512 } from "crypto-js";
 import {
   badStringParams,
@@ -14,6 +13,7 @@ import {
   fakeObject,
   randomStrings,
 } from "./utils.spec";
+import { EffyCryptoError } from "../src/errors/effy-crypto-error";
 
 /**
  * @encryptData and
@@ -23,21 +23,31 @@ import {
 describe("encrypt & decrypt data", () => {
   it("with good password", () => {
     for (let password of passwords) {
-      const encryptedData = encryptData(fakeObject, password);
-      const dataDecrypted = decryptData(encryptedData, password);
+      const encryptedData = encryptData({
+        data: fakeObject,
+        secretKey: password,
+      });
+      const dataDecrypted = decryptData({ encryptedData, secretKey: password });
+
       expect(dataDecrypted).toEqual(fakeObject);
     }
   });
 
   it("with bad password", () => {
     const password = "MyGoodPassword";
-    const encryptedData = encryptData(fakeObject, password);
+    const encryptedData = encryptData({
+      data: fakeObject,
+      secretKey: password,
+    });
     let errCount = 0;
     for (let badPassword of passwords) {
       try {
-        decryptData(encryptedData, badPassword);
-      } catch {
+        decryptData({ encryptedData, secretKey: badPassword });
+      } catch (error) {
         errCount++;
+
+        expect(error instanceof EffyCryptoError).toBe(true);
+        expect(error.unknownError).toBeDefined();
       }
     }
     expect(errCount).toEqual(passwords.length);
@@ -54,16 +64,17 @@ describe("encryptData", () => {
   it("with bad params", () => {
     for (let badParam of badStringParams) {
       const badParamAsString = badParam as any as string;
-      const badParamAsObject = badParam as any as object;
 
       try {
-        encryptData(fakeObject, badParamAsString);
+        encryptData({ data: fakeObject, secretKey: badParamAsString });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("secretKey must be a string");
         }
       }
@@ -71,14 +82,17 @@ describe("encryptData", () => {
 
     for (let badParam of badObjectParams) {
       const badParamAsObject = badParam as any as object;
-      try {
-        encryptData(badParamAsObject, password);
-      } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+      try {
+        encryptData({ data: badParamAsObject, secretKey: password });
+      } catch (error) {
+        const isEffyCryptoError = error instanceof EffyCryptoError;
+
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toMatch(/Expected object, received/);
         }
       }
@@ -91,36 +105,42 @@ describe("encryptData", () => {
     const undefinedParamAsObject = undefined as any as object;
 
     try {
-      encryptData(undefinedParamAsObject, password);
+      encryptData({ data: undefinedParamAsObject, secretKey: password });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
     try {
-      encryptData(fakeObject, undefinedParamAsString);
+      encryptData({ data: fakeObject, secretKey: undefinedParamAsString });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
     try {
-      encryptData(undefinedParamAsObject, undefinedParamAsString);
+      encryptData({
+        data: undefinedParamAsObject,
+        secretKey: undefinedParamAsString,
+      });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        const [badhash, badPwd] = error.issues.map(({ message }) => message);
-        issues = [...issues, badhash, badPwd];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        const [badPwd] = error.zodErrors.map(({ message }) => message);
+        issues = [...issues, badPwd];
       }
     }
 
@@ -134,31 +154,36 @@ describe("encryptData", () => {
 
 describe("decryptData", () => {
   const password = "myTestPaswword";
-  const encryptedData = encryptData(fakeObject, password);
+  const encryptedData = encryptData({ data: fakeObject, secretKey: password });
 
   it("with bad params", () => {
     for (let badParam of badStringParams) {
       const badParamAsString = badParam as any as string;
-      try {
-        decryptData(encryptedData, badParamAsString);
-      } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+      try {
+        decryptData({ encryptedData, secretKey: badParamAsString });
+      } catch (error) {
+        const isEffyCryptoError = error instanceof EffyCryptoError;
+
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("secretKey must be a string");
         }
       }
 
       try {
-        decryptData(badParamAsString, password);
+        decryptData({ encryptedData: badParamAsString, secretKey: password });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toMatch("encryptedData must be a string");
         }
       }
@@ -170,24 +195,29 @@ describe("decryptData", () => {
     const undefinedParamAsString = undefined as any as string;
 
     try {
-      decryptData(undefinedParamAsString, password);
+      decryptData({
+        encryptedData: undefinedParamAsString,
+        secretKey: password,
+      });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
     try {
-      decryptData(encryptedData, undefinedParamAsString);
+      decryptData({ encryptedData, secretKey: undefinedParamAsString });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
@@ -203,6 +233,7 @@ describe("getSecretKey", () => {
   it("should hash in SHA512", () => {
     for (let string of randomStrings) {
       const key = getSecretKey(string);
+
       expect(SHA512(string).toString()).toEqual(key);
     }
   });
@@ -210,14 +241,17 @@ describe("getSecretKey", () => {
   it("with bad params", () => {
     for (let badParam of badStringParams) {
       const badParamAsString = badParam as any as string;
+
       try {
         getSecretKey(badParamAsString);
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("keyString must be a string");
         }
       }
@@ -229,11 +263,13 @@ describe("getSecretKey", () => {
     try {
       getSecretKey(undefinedParamAsString);
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        const { message } = error.issues[0];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        const { message } = error.zodErrors[0];
+
         expect(message).toBe("Required");
       }
     }
@@ -251,19 +287,29 @@ describe("changeSecretKey", () => {
       const beforePassword = passwords[Number(pwdIndex) - 1];
       const password = passwords[pwdIndex];
       if (!encryptedData) {
-        encryptedData = encryptData(fakeObject, passwords[pwdIndex]);
+        encryptedData = encryptData({
+          data: fakeObject,
+          secretKey: passwords[pwdIndex],
+        });
+
         expect(typeof encryptedData).toBe("string");
       } else {
-        encryptedData = changeSecretKey(
-          beforePassword,
-          password,
-          encryptedData
+        encryptedData = changeSecretKey({
+          oldKey: beforePassword,
+          newKey: password,
+          encryptedData,
+        });
+
+        expect(decryptData({ encryptedData, secretKey: password })).toEqual(
+          fakeObject
         );
-        expect(decryptData(encryptedData, password)).toEqual(fakeObject);
 
         let cantDecryptWithOldPass = true;
         try {
-          const decryptWillFail = decryptData(encryptedData, beforePassword);
+          const decryptWillFail = decryptData({
+            encryptedData,
+            secretKey: beforePassword,
+          });
           cantDecryptWithOldPass = !decryptWillFail;
         } catch {}
 
@@ -278,37 +324,55 @@ describe("changeSecretKey", () => {
     for (let badParam of badStringParams) {
       const badParamAsString = badParam as any as string;
       try {
-        changeSecretKey(badParamAsString, goodString, goodString);
+        changeSecretKey({
+          oldKey: badParamAsString,
+          newKey: goodString,
+          encryptedData: goodString,
+        });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("oldKey must be a string");
         }
       }
 
       try {
-        changeSecretKey(goodString, badParamAsString, goodString);
+        changeSecretKey({
+          oldKey: goodString,
+          newKey: badParamAsString,
+          encryptedData: goodString,
+        });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("newKey must be a string");
         }
       }
 
       try {
-        changeSecretKey(goodString, goodString, badParamAsString);
+        changeSecretKey({
+          oldKey: goodString,
+          newKey: goodString,
+          encryptedData: badParamAsString,
+        });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("encryptedData must be a string");
         }
       }

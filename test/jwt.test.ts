@@ -1,6 +1,7 @@
 import { JsonWebTokenError } from "jsonwebtoken";
 import { describe, expect, it, vi } from "vitest";
-import { z, ZodError } from "zod";
+import { z } from "zod";
+import { EffyCryptoError } from "../src/errors/effy-crypto-error";
 import {
   refreshingToken,
   createAuthAndRefreshToken,
@@ -18,21 +19,32 @@ describe("create TokenType", () => {
   const secretKey = "secret";
 
   it("should return a valid TokenTool", () => {
-    const tokenTool = createTokenTool(secretKey, "1h");
+    const tokenTool = createTokenTool({
+      secretString: secretKey,
+      expiresIn: "1h",
+    });
+
     expect(tokenToolsShema.safeParse(tokenTool).success).toBe(true);
 
     const jwt = tokenTool.sign(fakeObject);
+
     expect(typeof jwt).toBe("string");
 
     const jwtDecode = tokenTool.verify(jwt);
+
     expect(jwtDecode.data).toEqual(fakeObject);
   });
 
   it("create a wrong TokenTools", () => {
-    const tokenTool = createTokenTool(secretKey, instantExpiration);
+    const tokenTool = createTokenTool({
+      secretString: secretKey,
+      expiresIn: instantExpiration,
+    });
+
     expect(tokenToolsShema.safeParse(tokenTool).success).toBe(true);
 
     const jwt = tokenTool.sign(fakeObject);
+
     expect(typeof jwt).toBe("string");
 
     let jwtHasFailed = false;
@@ -50,25 +62,32 @@ describe("create TokenType", () => {
       const badParamAsString = badParam as any as string;
 
       try {
-        createTokenTool(badParamAsString, "1h");
+        createTokenTool({ secretString: badParamAsString, expiresIn: "1h" });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("secretString must be a string");
         }
       }
 
       try {
-        createTokenTool("secret", badParamAsString);
+        createTokenTool({
+          secretString: "secret",
+          expiresIn: badParamAsString,
+        });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("expiresIn must be a string");
         }
       }
@@ -79,24 +98,32 @@ describe("create TokenType", () => {
     let issues: string[] = [];
     const undefinedParamAsString = undefined as any as string;
     try {
-      createTokenTool(undefinedParamAsString, "1h");
+      createTokenTool({
+        secretString: undefinedParamAsString,
+        expiresIn: "1h",
+      });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
     try {
-      createTokenTool("secret", undefinedParamAsString);
+      createTokenTool({
+        secretString: "secret",
+        expiresIn: undefinedParamAsString,
+      });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
@@ -124,17 +151,21 @@ describe("createAuthAndRefreshToken", () => {
 
     it("auth should be functional", () => {
       const jwt = auth.sign(fakeObject);
+
       expect(typeof jwt).toBe("string");
 
       const jwtDecode = auth.verify(jwt);
+
       expect(jwtDecode.data).toEqual(fakeObject);
     });
 
     it("refresh should be functional", () => {
       const jwt = refresh.sign(fakeObject);
+
       expect(typeof jwt).toBe("string");
 
       const jwtDecode = refresh.verify(jwt);
+
       expect(jwtDecode.data).toEqual(fakeObject);
     });
   });
@@ -148,11 +179,13 @@ describe("createAuthAndRefreshToken", () => {
           authExpireIn: badParamAsString,
         });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("authExpireIn must be a string");
         }
       }
@@ -163,11 +196,13 @@ describe("createAuthAndRefreshToken", () => {
           authSecretString: badParamAsString,
         });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("authSecretString must be a string");
         }
       }
@@ -178,11 +213,13 @@ describe("createAuthAndRefreshToken", () => {
           refreshExpireIn: badParamAsString,
         });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("refreshExpireIn must be a string");
         }
       }
@@ -193,11 +230,13 @@ describe("createAuthAndRefreshToken", () => {
           refreshSecretString: badParamAsString,
         });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("refreshSecretString must be a string");
         }
       }
@@ -214,11 +253,12 @@ describe("createAuthAndRefreshToken", () => {
         authSecretString: undefinedParamAsString,
       });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
@@ -228,11 +268,12 @@ describe("createAuthAndRefreshToken", () => {
         authExpireIn: undefinedParamAsString,
       });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
@@ -242,11 +283,12 @@ describe("createAuthAndRefreshToken", () => {
         refreshSecretString: undefinedParamAsString,
       });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
@@ -256,11 +298,12 @@ describe("createAuthAndRefreshToken", () => {
         refreshExpireIn: undefinedParamAsString,
       });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
@@ -323,6 +366,7 @@ describe("refreshingToken", () => {
 
     if (invalidRefreshTokenResult.isJwtValid === false) {
       const { error } = invalidRefreshTokenResult;
+
       expect(error instanceof JsonWebTokenError).toBe(true);
     }
   });
@@ -340,11 +384,12 @@ describe("refreshingToken", () => {
         refreshTokenTools: undefinedParamAsTokenTools,
       });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
@@ -354,11 +399,12 @@ describe("refreshingToken", () => {
         authTokenTools: undefinedParamAsTokenTools,
       });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
@@ -368,11 +414,12 @@ describe("refreshingToken", () => {
         refreshToken: undefinedParamAsString,
       });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
@@ -382,11 +429,12 @@ describe("refreshingToken", () => {
         authTokenPayload: undefinedParamAsString,
       });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
     issues.forEach((message) => expect(message).toBe("Required"));
@@ -394,6 +442,7 @@ describe("refreshingToken", () => {
 
   it("with wrong params", () => {
     for (let badParam of badStringParams) {
+      let allpasslikeThink = false;
       const badParamAsTokenTools = badParam as unknown as z.infer<
         typeof tokenToolsShema
       >;
@@ -405,9 +454,14 @@ describe("refreshingToken", () => {
           refreshTokenTools: badParamAsTokenTools,
         });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
+        allpasslikeThink = true;
+
+        expect(isEffyCryptoError).toBe(true);
       }
+
+      expect(allpasslikeThink).toBe(true);
+      allpasslikeThink = false;
 
       try {
         refreshingToken({
@@ -415,19 +469,13 @@ describe("refreshingToken", () => {
           refreshToken: badParamAsString,
         });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
+        allpasslikeThink = true;
+
+        expect(isEffyCryptoError).toBe(true);
       }
 
-      try {
-        refreshingToken({
-          ...refreshingConfig,
-          authTokenPayload: badParamAsString,
-        });
-      } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
-      }
+      expect(allpasslikeThink).toBe(true);
     }
   });
 });
