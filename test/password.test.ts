@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { hashPassword, verifyPassword } from "../src/utils/password";
-import { ZodError } from "zod";
 import { badStringParams, passwords } from "./utils.spec";
+import { EffyCryptoError } from "../src/errors/effy-crypto-error";
 /**
  * @hashPassword and
  * @verifyPassword integration testing
@@ -11,7 +11,8 @@ describe("hash & verify password", () => {
   it("with good password", async () => {
     for (let password of passwords) {
       const hashedPassword = await hashPassword(password);
-      const isValid = await verifyPassword(hashedPassword, password);
+      const isValid = await verifyPassword({ hashedPassword, password });
+
       expect(isValid).toBe(true);
     }
   });
@@ -21,7 +22,11 @@ describe("hash & verify password", () => {
     const hashedPassword = await hashPassword(password);
 
     for (let badPassword of passwords) {
-      const isValid = await verifyPassword(hashedPassword, badPassword);
+      const isValid = await verifyPassword({
+        hashedPassword,
+        password: badPassword,
+      });
+
       expect(isValid).toBe(false);
     }
   });
@@ -39,11 +44,13 @@ describe("hashPassword", () => {
       try {
         await hashPassword(badParamAsString);
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("password must be a string");
         }
       }
@@ -56,11 +63,13 @@ describe("hashPassword", () => {
     try {
       await hashPassword(undefinedParamAsString);
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        const { message } = error.issues[0];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        const { message } = error.zodErrors[0];
+
         expect(message).toBe("Required");
       }
     }
@@ -80,37 +89,48 @@ describe("verifyPassword", async () => {
       const badParamAsString = badParam as any as string;
 
       try {
-        await verifyPassword(badParamAsString, password);
+        await verifyPassword({ hashedPassword: badParamAsString, password });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("hashedPassword must be a string");
         }
       }
 
       try {
-        await verifyPassword(hashedPassword, badParamAsString);
+        await verifyPassword({ hashedPassword, password: badParamAsString });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const { message } = error.issues[0];
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const { message } = error.zodErrors[0];
+
           expect(message).toBe("password must be a string");
         }
       }
 
       try {
-        await verifyPassword(badParamAsString, badParamAsString);
+        await verifyPassword({
+          hashedPassword: badParamAsString,
+          password: badParamAsString,
+        });
       } catch (error) {
-        const isZodError = error instanceof ZodError;
-        expect(isZodError).toBe(true);
+        const isEffyCryptoError = error instanceof EffyCryptoError;
 
-        if (isZodError) {
-          const [badhash, badPwd] = error.issues.map(({ message }) => message);
+        expect(isEffyCryptoError).toBe(true);
+
+        if (isEffyCryptoError) {
+          const [badhash, badPwd] = error.zodErrors.map(
+            ({ message }) => message
+          );
+
           expect(badhash).toBe("hashedPassword must be a string");
           expect(badPwd).toBe("password must be a string");
         }
@@ -123,35 +143,47 @@ describe("verifyPassword", async () => {
     const undefinedParamAsString = undefined as any as string;
 
     try {
-      await verifyPassword(undefinedParamAsString, password);
+      await verifyPassword({
+        hashedPassword: undefinedParamAsString,
+        password,
+      });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
     try {
-      await verifyPassword(hashedPassword, undefinedParamAsString);
+      await verifyPassword({
+        hashedPassword,
+        password: undefinedParamAsString,
+      });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        issues = [...issues, error.issues[0].message];
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        issues = [...issues, error.zodErrors[0].message];
       }
     }
 
     try {
-      await verifyPassword(undefinedParamAsString, undefinedParamAsString);
+      await verifyPassword({
+        hashedPassword: undefinedParamAsString,
+        password: undefinedParamAsString,
+      });
     } catch (error) {
-      const isZodError = error instanceof ZodError;
-      expect(isZodError).toBe(true);
+      const isEffyCryptoError = error instanceof EffyCryptoError;
 
-      if (isZodError) {
-        const [badhash, badPwd] = error.issues.map(({ message }) => message);
+      expect(isEffyCryptoError).toBe(true);
+
+      if (isEffyCryptoError) {
+        const [badhash, badPwd] = error.zodErrors.map(({ message }) => message);
         issues = [...issues, badhash, badPwd];
       }
     }

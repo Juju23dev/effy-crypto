@@ -1,40 +1,36 @@
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
+import { syncFnErrorCatcher, syncFnSafeErrorCatcher } from '../errors/wrap-fn-error';
 import {
   createAuthAndRefreshTokenValidator,
   createTokenTypeValidator,
   jwtPayloadSchema,
   refreshingTokenValidator,
-} from "./zod.validators";
+} from './zod.validators';
 
-const createTokenTool = <T>(secretString: string, expiresIn: string) => {
-  createTokenTypeValidator([secretString, expiresIn]);
+const createTokenToolFn = <T>(params: { secretString: string; expiresIn: string }) => {
+  const { secretString, expiresIn } = createTokenTypeValidator(params);
 
   return {
     sign: (payload: T | undefined = undefined) =>
       jwt.sign({ data: payload }, secretString, { expiresIn }),
-    verify: (token: string) =>
-      jwtPayloadSchema.parse(jwt.verify(token, secretString)),
+    verify: (token: string) => jwtPayloadSchema.parse(jwt.verify(token, secretString)),
   };
 };
 
-type TokenTools = ReturnType<typeof createTokenTool>;
+type TokenTools = ReturnType<typeof createTokenToolFn>;
 
-const createAuthAndRefreshToken = (payload: {
+const createAuthAndRefreshTokenFn = (payload: {
   authSecretString: string;
   authExpireIn: string;
   refreshSecretString: string;
   refreshExpireIn: string;
 }) => {
-  const {
-    authSecretString,
-    authExpireIn,
-    refreshSecretString,
-    refreshExpireIn,
-  } = createAuthAndRefreshTokenValidator(payload);
+  const { authSecretString, authExpireIn, refreshSecretString, refreshExpireIn } =
+    createAuthAndRefreshTokenValidator(payload);
 
   return {
-    auth: createTokenTool(authSecretString, authExpireIn),
-    refresh: createTokenTool(refreshSecretString, refreshExpireIn),
+    auth: createTokenToolFn({ secretString: authSecretString, expiresIn: authExpireIn }),
+    refresh: createTokenToolFn({ secretString: refreshSecretString, expiresIn: refreshExpireIn }),
   };
 };
 
@@ -48,7 +44,7 @@ type RefeshingTokenReturn =
       error: unknown;
     };
 
-const refreshingToken = <T>(payload: {
+const refreshingTokenFn = <T>(payload: {
   refreshTokenTools: TokenTools;
   authTokenTools: TokenTools;
   refreshToken: string;
@@ -66,4 +62,18 @@ const refreshingToken = <T>(payload: {
   }
 };
 
-export { createTokenTool, refreshingToken, createAuthAndRefreshToken };
+export const {
+  createTokenTool,
+  safeCreateTokenTool,
+  refreshingToken,
+  safeRefreshingToken,
+  createAuthAndRefreshToken,
+  safeCreateAuthAndRefreshToken,
+} = {
+  createTokenTool: syncFnErrorCatcher(createTokenToolFn),
+  safeCreateTokenTool: syncFnSafeErrorCatcher(createTokenToolFn),
+  refreshingToken: syncFnErrorCatcher(refreshingTokenFn),
+  safeRefreshingToken: syncFnSafeErrorCatcher(refreshingTokenFn),
+  createAuthAndRefreshToken: syncFnErrorCatcher(createAuthAndRefreshTokenFn),
+  safeCreateAuthAndRefreshToken: syncFnSafeErrorCatcher(createAuthAndRefreshTokenFn),
+};
